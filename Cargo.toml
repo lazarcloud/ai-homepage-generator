@@ -3,6 +3,14 @@ name = "ai-based-website"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "ai_web"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ai-web"
+path = "src/main.rs"
+
 [dependencies]
 dotenvy = "0.15"
 groq-api-rust = "0.2.51"
@@ -17,3 +25,6 @@ uuid = { version = "1", features = ["v4"] }
 time = { version = "0.3", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "time"] }
+thiserror = "2.0.16"
+anyhow = "1.0.99"
+serde = { version = "1.0.219", features = ["derive"] }
