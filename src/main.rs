@@ -86,6 +86,9 @@ Return ONLY HTML (no Markdown, no code fences)."#);
                     });
 
                 let html = strip_think_tags(&raw_html);
+
+                println!("\n===== [{}] SUCCESS =====\n{}\n", model, html);
+
                 return Html(html);
             }
             Err(err) => {
@@ -114,6 +117,15 @@ static THINK_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?is)<\s*think\s*>.*?<\s*/\s*think\s*>").expect("valid regex")
 });
 
+static FENCE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?is)```(?:html)?\s*(.*?)\s*```").expect("valid regex")
+});
+
 fn strip_think_tags(s: &str) -> String {
-    THINK_RE.replace_all(s, "").to_string()
+    let no_think = THINK_RE.replace_all(s, "").to_string();
+    if let Some(caps) = FENCE_RE.captures(&no_think) {
+        caps.get(1).map(|m| m.as_str().to_string()).unwrap_or(no_think)
+    } else {
+        no_think
+    }
 }
