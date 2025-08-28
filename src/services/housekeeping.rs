@@ -6,14 +6,22 @@ use uuid::Uuid;
 use tracing::info;
 
 pub async fn prewarm(storage: Storage, groq: GroqClient, count: usize) {
+    let mut tasks = Vec::with_capacity(count);
     for _ in 0..count {
-        match generate_page(&groq).await {
-            Ok((html, model)) => {
+        let storage = storage.clone();
+        let groq = groq.clone();
+        tasks.push(tokio::spawn(async move {
+            generate_page(&groq).await.map(|(html, model)| (storage, html, model))
+        }));
+    }
+    for t in tasks {
+        match t.await {
+            Ok(Ok((storage, html, model))) => {
                 let page = Page { id: Uuid::new_v4(), html, created_at: std::time::Instant::now(), seen_count: 0 };
                 storage.push_page(page).await;
-                info!(%model, "prewarmed page");
+                tracing::info!(%model, "prewarmed page");
             }
-            Err(e) => tracing::warn!(error=?e, "failed to prewarm one page"),
+            _ => tracing::warn!("failed to prewarm one page"),
         }
     }
 }

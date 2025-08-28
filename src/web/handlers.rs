@@ -39,11 +39,13 @@ fn get_or_issue_user_id(jar: CookieJar) -> (CookieJar, String) {
 }
 
 async fn serve_or_generate(state: &AppState, user_id: &str) -> Result<String> {
+
+    crate::services::housekeeping::cleanup_pages(&state.storage).await;
+
     use std::collections::HashSet;
     let seen_ids: HashSet<_> = {
         let mut seen = state.storage.user_seen.lock().await;
         let dq = seen.entry(user_id.to_string()).or_default();
-        super::super::services::housekeeping::cleanup_pages(&state.storage).await;
         dq.iter().map(|(id, _)| *id).collect()
     };
 

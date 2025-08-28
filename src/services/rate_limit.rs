@@ -21,11 +21,12 @@ impl RateLimiter {
         true
     }
     pub fn sweep(&mut self) {
-        let now = Instant::now();
-        for dq in self.hits.values_mut() {
-            while let Some(&t) = dq.front() {
-                if now.duration_since(t) > Duration::from_secs(60) { dq.pop_front(); } else { break; }
-            }
+    let now = Instant::now();
+    self.hits.retain(|_, dq| {
+        while let Some(&t) = dq.front() {
+            if now.duration_since(t) > Duration::from_secs(60) { dq.pop_front(); } else { break; }
         }
-    }
+        !dq.is_empty()
+    });
+}
 }
