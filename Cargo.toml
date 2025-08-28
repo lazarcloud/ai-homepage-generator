@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 dotenvy = "0.15"
 groq-api-rust = "0.2.51"
+axum = "0.7"
+tokio = { version = "1.38", features = ["rt-multi-thread", "macros"] }
+html-escape = "0.2"
