@@ -1,9 +1,11 @@
 use axum::{extract::State, response::Html, routing::get, Router};
 use dotenvy::dotenv;
 use html_escape;
-use rand::{rng, seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use std::{env, net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 use groq_api_rust::{
     AsyncGroqClient, ChatCompletionMessage, ChatCompletionRequest, ChatCompletionRoles,
@@ -72,7 +74,7 @@ Return ONLY HTML (no Markdown, no code fences)."#);
 
         match client.chat_completion(req).await {
             Ok(resp) => {
-                let html = resp
+                let raw_html = resp
                     .choices
                     .get(0)
                     .map(|c| c.message.content.clone())
@@ -82,6 +84,8 @@ Return ONLY HTML (no Markdown, no code fences)."#);
                             model
                         )
                     });
+
+                let html = strip_think_tags(&raw_html);
                 return Html(html);
             }
             Err(err) => {
@@ -104,4 +108,12 @@ Return ONLY HTML (no Markdown, no code fences)."#);
 </html>"#,
         safe
     ))
+}
+
+static THINK_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?is)<\s*think\s*>.*?<\s*/\s*think\s*>").expect("valid regex")
+});
+
+fn strip_think_tags(s: &str) -> String {
+    THINK_RE.replace_all(s, "").to_string()
 }
