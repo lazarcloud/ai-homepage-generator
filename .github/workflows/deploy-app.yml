@@ -1,0 +1,82 @@
+name: Build AI Homepages
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/deploy-app.yml
+  workflow_dispatch:
+
+concurrency:
+  group: "ai-homepages-deploy"
+  cancel-in-progress: true
+
+env:
+  SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+  REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  REGISTRY_ENDPOINT: ${{ secrets.REGISTRY_ENDPOINT }}
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  REPO_FOLDER: compose
+  BASE_DIR: .
+  SERVICE_FOLDER: /home/ai-homepages
+  IMAGE_NAME: ai-homepages
+
+jobs:
+  build:
+    name: Build and Deploy
+    runs-on: lazarvps
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build and Push Docker Image
+        run: |
+          echo "$SUDO_PASSWORD" | sudo -S bash -c "
+            set -e
+            sudo docker login --username $REGISTRY_USER --password $REGISTRY_PASSWORD $REGISTRY_ENDPOINT
+            sudo docker build --pull --cache-from $REGISTRY_ENDPOINT/$IMAGE_NAME \
+              --tag $REGISTRY_ENDPOINT/$IMAGE_NAME:$GITHUB_SHA \
+              --tag $REGISTRY_ENDPOINT/$IMAGE_NAME:latest \
+              $BASE_DIR -f $BASE_DIR/Dockerfile
+            sudo docker push $REGISTRY_ENDPOINT/$IMAGE_NAME:$GITHUB_SHA
+            sudo docker push $REGISTRY_ENDPOINT/$IMAGE_NAME:latest
+          "
+
+  deploy:
+    runs-on: lazarvps
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: compose
+          sparse-checkout-cone-mode: false
+      - name: Copy and set permissions
+        run: |
+          echo "$SUDO_PASSWORD" | sudo -S bash -c "
+            mkdir -p $SERVICE_FOLDER
+            cp -r $REPO_FOLDER/* $SERVICE_FOLDER
+          "
+      - name: Create .env file
+        run: |
+          echo "$SUDO_PASSWORD" | sudo -S bash -c "
+            cat > $SERVICE_FOLDER/.env <<EOF
+          GROQ_API_KEY=${GROQ_API_KEY}
+          IMAGE=${REGISTRY_ENDPOINT}/${IMAGE_NAME}:latest
+          EOF
+              "
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+      - name: Restart Docker Compose service
+        run: |
+          echo "$SUDO_PASSWORD" | sudo -S su -c "
+            sudo docker login --username $REGISTRY_USER --password $REGISTRY_PASSWORD $REGISTRY_ENDPOINT
+            cd $SERVICE_FOLDER
+            docker compose pull && docker compose up -d
+          "

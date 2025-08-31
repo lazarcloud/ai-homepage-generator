@@ -1,0 +1,19 @@
+services:
+  portfolio-worker:
+    image: ${IMAGE}
+    container_name: ai-homepages
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 240s
+    env_file:
+      - .env
+    networks:
+      - lazar-network
+
+networks:
+  lazar-network:
+    external: true
