@@ -29,6 +29,10 @@ pub async fn index(State(state): State<AppState>, jar: CookieJar) -> impl IntoRe
     }
 }
 
+pub async fn health() -> impl IntoResponse {
+    (StatusCode::OK, "ok")
+}
+
 fn get_or_issue_user_id(jar: CookieJar) -> (CookieJar, String) {
     if let Some(val) = jar.get("user_id").map(|c| c.value().to_string()) { return (jar, val); }
     let user_id = Uuid::new_v4().to_string();
