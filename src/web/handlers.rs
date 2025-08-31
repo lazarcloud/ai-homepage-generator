@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::error::Result;
 use crate::state::AppState;
-use crate::services::{generator, storage::Storage};
+use crate::services::generator;
 use crate::web::utils::{error_page, rate_limited_page};
 
 pub async fn index(State(state): State<AppState>, jar: CookieJar) -> impl IntoResponse {

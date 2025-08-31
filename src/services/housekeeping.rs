@@ -1,7 +1,7 @@
 use crate::domain::page::{Page, PAGE_TTL, CLEANUP_EVERY};
-use crate::services::{generator::generate_page, storage::Storage};
+use crate::services::{generator::generate_page, storage::Storage, rate_limit::RateLimiter};
 use crate::clients::groq::GroqClient;
-use tokio::time::{sleep, Duration};
+use tokio::time::sleep;
 use uuid::Uuid;
 use tracing::info;
 
@@ -26,12 +26,16 @@ pub async fn prewarm(storage: Storage, groq: GroqClient, count: usize) {
     }
 }
 
-pub async fn start_cleanup(storage: Storage, mut sweep_hits: impl FnMut() + Send + 'static) {
+pub async fn start_cleanup(
+    storage: Storage,
+    limiter: std::sync::Arc<tokio::sync::Mutex<RateLimiter>>,
+) {
     tokio::spawn(async move {
         loop {
             sleep(CLEANUP_EVERY).await;
             cleanup_pages(&storage).await;
-            sweep_hits();
+            let mut guard = limiter.lock().await;
+            guard.sweep();
         }
     });
 }
